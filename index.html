@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#ffffff">
+<title>רשימת קניות</title>
+<style>
+:root {
+  --green:#1a9e6e;--green-light:#e8f7f1;--green-mid:#c3ead9;
+  --text:#1a1a1a;--text-muted:#6b7280;--text-faint:#9ca3af;
+  --bg:#f9f9f7;--surface:#ffffff;--border:rgba(0,0,0,0.09);--border-strong:rgba(0,0,0,0.15);
+  --radius:12px;--radius-sm:8px;
+}
+@media(prefers-color-scheme:dark){:root{
+  --green:#34d399;--green-light:#0d2e22;--green-mid:#1a4a35;
+  --text:#f0f0ee;--text-muted:#9ca3af;--text-faint:#6b7280;
+  --bg:#111210;--surface:#1c1c1a;--border:rgba(255,255,255,0.08);--border-strong:rgba(255,255,255,0.14);
+}}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI',Arial,sans-serif;}
+body{display:flex;flex-direction:column;max-width:480px;margin:0 auto;}
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 16px 12px;position:sticky;top:0;z-index:100;}
+.header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.app-title{font-size:18px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px;}
+.mode-badge{font-size:12px;font-weight:500;padding:3px 10px;border-radius:20px;}
+.mode-badge.create{background:var(--green-light);color:var(--green);border:1px solid var(--green-mid);}
+.mode-badge.shop{background:#fef3c7;color:#92400e;border:1px solid #fde68a;}
+.tabs{display:flex;gap:4px;background:var(--bg);border-radius:var(--radius-sm);padding:3px;}
+.tab{flex:1;padding:7px 4px;font-size:13px;border:none;background:transparent;color:var(--text-muted);border-radius:6px;cursor:pointer;font-weight:500;}
+.tab.active{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,0.1);}
+.content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.search-wrap{padding:12px 16px 8px;background:var(--bg);}
+.search-input{width:100%;padding:10px 14px;font-size:15px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);outline:none;}
+.search-input:focus{border-color:var(--green);}
+.cat-scroll{display:flex;gap:7px;padding:0 16px 10px;overflow-x:auto;scrollbar-width:none;}
+.cat-scroll::-webkit-scrollbar{display:none;}
+.cat-pill{white-space:nowrap;padding:5px 13px;border-radius:20px;font-size:13px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text-muted);cursor:pointer;flex-shrink:0;font-weight:500;}
+.cat-pill.active{background:var(--green);color:white;border-color:var(--green);}
+.product-list{padding:0 16px 120px;}
+.product-item{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:6px;}
+.product-item.selected{border-color:var(--green);background:var(--green-light);}
+.p-name{font-size:15px;}
+.p-cat{font-size:12px;color:var(--text-faint);margin-top:2px;}
+.check-circle{width:22px;height:22px;border-radius:50%;border:2px solid var(--border-strong);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;}
+.product-item.selected .check-circle{background:var(--green);border-color:var(--green);}
+/* qty controls on product card */
+.qty-ctrl{display:flex;align-items:center;gap:0;flex-shrink:0;}
+.qty-ctrl button{width:28px;height:28px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text);font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;}
+.qty-ctrl button:first-child{border-radius:6px 0 0 6px;}
+.qty-ctrl button:last-child{border-radius:0 6px 6px 0;}
+.qty-ctrl span{min-width:26px;text-align:center;font-size:14px;font-weight:600;color:var(--text);border-top:1px solid var(--border-strong);border-bottom:1px solid var(--border-strong);height:28px;display:flex;align-items:center;justify-content:center;background:var(--surface);}
+.product-item.selected .qty-ctrl button{border-color:var(--green);background:var(--green-light);}
+.product-item.selected .qty-ctrl span{border-color:var(--green);background:var(--green-light);}
+/* expanded detail panel under selected product */
+.item-detail{margin-top:10px;padding-top:10px;border-top:1px solid var(--green-mid);display:flex;flex-direction:column;gap:8px;}
+.item-detail-row{display:flex;gap:6px;align-items:center;}
+.item-detail label{font-size:12px;color:var(--text-muted);flex-shrink:0;min-width:42px;}
+.item-detail input[type=number]{width:64px;padding:5px 8px;font-size:14px;border:1px solid var(--border-strong);border-radius:6px;background:var(--surface);color:var(--text);outline:none;text-align:center;}
+.item-detail input[type=number]:focus{border-color:var(--green);}
+.item-detail select{flex:1;padding:5px 8px;font-size:14px;border:1px solid var(--border-strong);border-radius:6px;background:var(--surface);color:var(--text);outline:none;cursor:pointer;}
+.item-detail select:focus{border-color:var(--green);}
+.item-detail input[type=text]{flex:1;padding:5px 8px;font-size:14px;border:1px solid var(--border-strong);border-radius:6px;background:var(--surface);color:var(--text);outline:none;}
+.item-detail input[type=text]:focus{border-color:var(--green);}
+.sel-badge{display:inline-flex;align-items:center;justify-content:center;background:var(--green);color:white;border-radius:50%;width:18px;height:18px;font-size:11px;font-weight:600;margin-right:4px;}
+.bottom-bar{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--border);padding:12px 16px;padding-bottom:max(12px,env(safe-area-inset-bottom));z-index:100;}
+.primary-btn{width:100%;padding:14px;font-size:16px;font-weight:600;border:none;border-radius:var(--radius);cursor:pointer;background:var(--green);color:white;}
+.primary-btn:disabled{background:var(--text-faint);}
+.btn-row{display:flex;gap:8px;}
+.sec-btn{flex:1;padding:12px 8px;font-size:14px;font-weight:500;border:1px solid var(--border-strong);border-radius:var(--radius-sm);cursor:pointer;background:var(--surface);color:var(--text);}
+.list-wrap{padding:12px 16px 120px;}
+.progress-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:14px;}
+.progress-nums{display:flex;justify-content:space-between;font-size:13px;color:var(--text-muted);margin-bottom:8px;}
+.progress-track{height:6px;background:var(--bg);border-radius:3px;overflow:hidden;}
+.progress-fill{height:100%;background:var(--green);border-radius:3px;transition:width 0.4s ease;}
+.section-header{font-size:12px;font-weight:600;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.05em;margin:14px 0 7px;}
+.list-item{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:6px;cursor:pointer;}
+.list-item.found{opacity:0.5;}
+.list-item.found .item-name{text-decoration:line-through;color:var(--text-muted);}
+.item-check{width:26px;height:26px;border-radius:50%;border:2px solid var(--border-strong);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.list-item.found .item-check{background:var(--green);border-color:var(--green);}
+.item-name{flex:1;font-size:15px;font-weight:500;}
+.item-cat{font-size:12px;color:var(--text-faint);margin-top:2px;}
+.item-qty-badge{font-size:13px;font-weight:600;color:var(--green);background:var(--green-light);border:1px solid var(--green-mid);padding:3px 9px;border-radius:20px;flex-shrink:0;}
+.empty{text-align:center;padding:48px 24px;color:var(--text-muted);}
+.empty svg{margin-bottom:12px;opacity:0.3;display:block;margin-left:auto;margin-right:auto;}
+.empty p{font-size:16px;}
+.empty small{font-size:13px;opacity:0.7;display:block;margin-top:6px;}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;display:flex;align-items:flex-end;justify-content:center;}
+.modal-overlay.hidden{display:none;}
+.modal{background:var(--surface);border-radius:20px 20px 0 0;padding:20px 20px max(20px,env(safe-area-inset-bottom));width:100%;max-width:480px;}
+.modal-handle{width:40px;height:4px;background:var(--border-strong);border-radius:2px;margin:0 auto 20px;}
+.modal-title{font-size:18px;font-weight:600;margin-bottom:6px;}
+.modal-sub{font-size:14px;color:var(--text-muted);margin-bottom:16px;line-height:1.5;}
+.link-box{background:var(--bg);border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:10px 14px;font-size:11px;color:var(--text-muted);word-break:break-all;margin-bottom:12px;font-family:monospace;direction:ltr;text-align:left;max-height:70px;overflow-y:auto;}
+.modal-btn{width:100%;padding:13px;font-size:15px;font-weight:500;border:1px solid var(--border-strong);border-radius:var(--radius-sm);cursor:pointer;background:var(--surface);color:var(--text);margin-bottom:8px;display:flex;align-items:center;gap:10px;}
+.modal-btn svg{flex-shrink:0;color:var(--green);}
+.modal-cancel{width:100%;padding:13px;font-size:15px;font-weight:500;border:none;border-radius:var(--radius-sm);cursor:pointer;background:var(--bg);color:var(--text-muted);margin-top:4px;}
+.toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:white;padding:10px 20px;border-radius:20px;font-size:14px;z-index:300;opacity:0;transition:opacity 0.3s;pointer-events:none;white-space:nowrap;}
+.toast.show{opacity:1;}
+@media(prefers-color-scheme:dark){.toast{background:#f0f0ee;color:#1a1a1a;}}
+.custom-db-item{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border);}
+.custom-db-item:last-child{border-bottom:none;}
+.custom-db-item .del-btn{width:28px;height:28px;border:1px solid var(--border-strong);border-radius:6px;background:transparent;color:#ef4444;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px;}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-top">
+    <div class="app-title">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+      רשימת קניות
+    </div>
+    <span class="mode-badge create" id="mode-badge">יצירה</span>
+  </div>
+  <div class="tabs">
+    <button class="tab active" id="tab-products-btn" onclick="showTab('products')">
+      מוצרים <span id="sel-indicator" style="display:none"><span class="sel-badge" id="sel-badge">0</span></span>
+    </button>
+    <button class="tab" id="tab-list-btn" onclick="showTab('list')">
+      רשימה <span id="list-indicator" style="display:none"><span class="sel-badge" id="list-badge" style="background:#92400e">0</span></span>
+    </button>
+    <button class="tab" id="tab-db-btn" onclick="showTab('db')">ניהול מוצרים</button>
+  </div>
+</div>
+
+<div class="content" id="content-products">
+  <div class="search-wrap">
+    <input class="search-input" type="search" placeholder="חיפוש מוצר..." id="search-inp" oninput="renderProducts()" />
+  </div>
+  <div class="cat-scroll" id="cat-strip"></div>
+  <div class="product-list" id="pgrid"></div>
+</div>
+
+<div class="content" id="content-list" style="display:none">
+  <div class="list-wrap" id="list-wrap"></div>
+</div>
+
+<div class="content" id="content-db" style="display:none">
+  <div style="padding:16px 16px 120px">
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">הוסף מוצר חדש לדטהבייס. יישמר בדפדפן ויופיע בלשונית מוצרים.</p>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px;">
+      <div style="margin-bottom:12px;">
+        <label style="font-size:13px;color:var(--text-muted);display:block;margin-bottom:6px;">שם המוצר *</label>
+        <input id="new-name" class="search-input" type="text" placeholder="לדוגמה: גרנולה" style="width:100%" />
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="font-size:13px;color:var(--text-muted);display:block;margin-bottom:6px;">קטגוריה *</label>
+        <select id="new-cat" class="search-input" style="width:100%;cursor:pointer"><option value="">בחר קטגוריה...</option></select>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <input id="new-cat-custom" class="search-input" type="text" placeholder="או הקלד קטגוריה חדשה..." style="flex:1" />
+        </div>
+      </div>
+      <button onclick="addToDB()" style="width:100%;padding:13px;font-size:15px;font-weight:600;border:none;border-radius:var(--radius-sm);cursor:pointer;background:var(--green);color:white;">+ הוסף לדטהבייס</button>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">
+      <div style="padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:13px;font-weight:600;color:var(--text)">מוצרים שהוספת</span>
+        <span id="custom-count" style="font-size:12px;color:var(--text-muted)">0 מוצרים</span>
+      </div>
+      <div id="custom-db-list" style="max-height:300px;overflow-y:auto;"></div>
+    </div>
+  </div>
+</div>
+
+<div class="bottom-bar" id="bottom-products">
+  <button class="primary-btn" id="add-btn" onclick="addSelected()" disabled>בחר מוצרים להוסיף</button>
+</div>
+
+<div class="bottom-bar" id="bottom-db" style="display:none">
+  <button class="sec-btn" onclick="showTab('products')" style="width:100%">← חזור למוצרים</button>
+</div>
+
+<div class="bottom-bar" id="bottom-list" style="display:none">
+  <div class="btn-row">
+    <button class="sec-btn" onclick="openShare()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;margin-left:5px;vertical-align:-2px"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+      שלח לבן/בת הזוג
+    </button>
+    <button class="sec-btn" onclick="clearList()" style="color:#ef4444;flex:0 0 auto;padding:12px 14px;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+    </button>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="conflict-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">יש רשימה פעילה</div>
+    <div class="modal-sub">קיימת רשימה שטרם הושלמה. מה לעשות עם הרשימה החדשה?</div>
+    <button class="modal-btn" id="conflict-replace-btn">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+      החלף — התחל רשימה חדשה
+    </button>
+    <button class="modal-btn" id="conflict-merge-btn">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      מזג — הוסף לרשימה הקיימת
+    </button>
+    <button class="modal-cancel" id="conflict-cancel-btn">בטל — המשך עם הרשימה הישנה</button>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="share-modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">שלח את הרשימה</div>
+    <div class="modal-sub">בן/בת הזוג יפתחו את הקישור ויסמנו מה שנמצא בחנות.</div>
+    <div class="link-box" id="share-link-box"></div>
+    <button class="modal-btn" onclick="shareWhatsApp()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--green)"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.149-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+      שלח בוואטסאפ
+    </button>
+    <button class="modal-btn" onclick="copyLink()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+      העתק קישור
+    </button>
+    <button class="modal-cancel" onclick="closeModal()">ביטול</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const DB=[
+  {n:'תפוחים',c:'פירות'},{n:'אגסים',c:'פירות'},{n:'בננות',c:'פירות'},{n:'מלון',c:'פירות'},{n:'אבטיח',c:'פירות'},{n:'אפרסק / שזיף / נקטרינה',c:'פירות'},{n:'ענבים',c:'פירות'},{n:'תותים',c:'פירות'},{n:'אבוקדו',c:'פירות'},
+  {n:'מלפפונים',c:'ירקות'},{n:'עגבניות',c:'ירקות'},{n:'עלי חסה',c:'ירקות'},{n:'תפוחי אדמה',c:'ירקות'},{n:'בטטה',c:'ירקות'},{n:'שום',c:'ירקות'},{n:'בצל',c:'ירקות'},{n:'גזר',c:'ירקות'},{n:'קולורבי',c:'ירקות'},{n:'קישואים',c:'ירקות'},{n:'שורש פטרוזיליה',c:'ירקות'},{n:'כרובית',c:'ירקות'},{n:'פטריות טריות',c:'ירקות'},{n:'כרוב',c:'ירקות'},{n:'חציל',c:'ירקות'},{n:'שמיר',c:'ירקות'},{n:'סלט קולסלו',c:'ירקות'},{n:'עירית',c:'ירקות'},
+  {n:'עוף שלם',c:'בשר ועוף'},{n:'יריכיים',c:'בשר ועוף'},{n:'כרעיים חתוך',c:'בשר ועוף'},{n:'חזה עוף',c:'בשר ועוף'},{n:'פרגית',c:'בשר ועוף'},{n:'גרונות הודו',c:'בשר ועוף'},{n:'שוקיים הודו',c:'בשר ועוף'},{n:'סטייק דק',c:'בשר ועוף'},{n:'בקר טחון המבורגר',c:'בשר ועוף'},{n:'בקר טחון בולונז',c:'בשר ועוף'},{n:'בקר לשניצל',c:'בשר ועוף'},{n:'בקר חתוך לקוביות',c:'בשר ועוף'},
+  {n:'סלמון טרי',c:'דגים'},{n:'סלמון מעושן',c:'דגים'},{n:'סלמון קפוא',c:'דגים'},{n:'טונה',c:'דגים'},
+  {n:'חלב',c:'מוצרי חלב'},{n:'חלב נטול לקטוז',c:'מוצרי חלב'},{n:'אקטימל',c:'מוצרי חלב'},{n:'יוגורטים',c:'מוצרי חלב'},{n:'שמנת מתוקה',c:'מוצרי חלב'},{n:'שמנת לבישול',c:'מוצרי חלב'},{n:'גבינה צהובה',c:'מוצרי חלב'},{n:'גבינה מגורדת',c:'מוצרי חלב'},{n:'פרמזן',c:'מוצרי חלב'},{n:'גבינה אמריקאית',c:'מוצרי חלב'},{n:'גבינת גד ניו-יורק 5%',c:'מוצרי חלב'},{n:'גבינה גד עם זיתים 5%',c:'מוצרי חלב'},{n:'פרומעז',c:'מוצרי חלב'},{n:'מוצרלה',c:'מוצרי חלב'},{n:'מוצרלה מעושנת',c:'מוצרי חלב'},{n:"קוטג'",c:'מוצרי חלב'},{n:'ביצים',c:'מוצרי חלב'},{n:'חמאת מרובעת עם מלח',c:'מוצרי חלב'},{n:'חמאה למריחה',c:'מוצרי חלב'},
+  {n:'פסטרמה',c:'מעדניה'},{n:'סלט ביצים',c:'מעדניה'},
+  {n:'לחם',c:'מאפים'},{n:'לחמניות',c:'מאפים'},{n:'לחמניות המבורגר',c:'מאפים'},{n:'פיתות',c:'מאפים'},
+  {n:'אורז',c:'דגנים'},{n:'אורז סושי',c:'דגנים'},{n:'קוסקוס',c:'דגנים'},{n:'קינואה',c:'דגנים'},{n:'כוסמת',c:'דגנים'},{n:'קורנפלקס',c:'דגנים'},{n:'ספגטי',c:'דגנים'},{n:'פסטה',c:'דגנים'},{n:'wacky mac',c:'דגנים'},{n:"לפצ'יצ'קה",c:'דגנים'},{n:'פתיתים',c:'דגנים'},{n:'קמח',c:'דגנים'},{n:'פירורי לחם',c:'דגנים'},{n:'נודלס אורז',c:'דגנים'},{n:'ניירות אורז',c:'דגנים'},
+  {n:'שמן זית',c:'מצרכים'},{n:'שמן',c:'מצרכים'},{n:'חומץ',c:'מצרכים'},{n:'מיץ לימון לסלט',c:'מצרכים'},{n:'אבקת מרק עוף',c:'מצרכים'},{n:'מיונז',c:'מצרכים'},{n:'קטשופ',c:'מצרכים'},{n:'קטשופ 56%',c:'מצרכים'},{n:'סוכר',c:'מצרכים'},{n:'מלח',c:'מצרכים'},{n:'מלח גס',c:'מצרכים'},{n:'עלי דפנה',c:'מצרכים'},{n:'פפריקה',c:'מצרכים'},{n:'יין לבישול',c:'מצרכים'},{n:'ציר בקר',c:'מצרכים'},{n:'סויה',c:'מצרכים'},{n:'טריאקי',c:'מצרכים'},{n:"צ'ילי מתוק",c:'מצרכים'},{n:'נוטלה',c:'מצרכים'},{n:'דבש',c:'מצרכים'},{n:'קארי ירוק - מחית',c:'מצרכים'},{n:'תירס',c:'מצרכים'},{n:'מלפפון חמוץ',c:'מצרכים'},{n:'זיתים',c:'מצרכים'},{n:'פטריות',c:'מצרכים'},{n:'רוטב עגבניות לפיצה',c:'מצרכים'},{n:'רסק עגבניות קטן',c:'מצרכים'},{n:'עגבניות מרוסקות גדול - טל',c:'מצרכים'},{n:'חלב קוקוס',c:'מצרכים'},{n:'תירס גמדי',c:'מצרכים'},{n:'אצות לסושי',c:'מצרכים'},{n:'אצות קלויות',c:'מצרכים'},
+  {n:'קולה Zero',c:'משקאות'},{n:'תה אפרסק',c:'משקאות'},
+  {n:"צ'יפס",c:'קפואים'},{n:'פיצה',c:'קפואים'},{n:'בורקס',c:'קפואים'},{n:'אדממה',c:'קפואים'},{n:'שעועית ירוקה',c:'קפואים'},{n:'ברוקולי מיני',c:'קפואים'},{n:'כרובית מיני',c:'קפואים'},{n:'אפונה',c:'קפואים'},{n:'עלי תרד',c:'קפואים'},{n:'שניצל',c:'קפואים'},
+  {n:'מברשת שיניים',c:'טיפוח'},{n:'משחת שינים',c:'טיפוח'},{n:'מי פה',c:'טיפוח'},{n:'חוט דנטלי',c:'טיפוח'},{n:'סבון נוזלי',c:'טיפוח'},{n:'שמפו',c:'טיפוח'},{n:'קונדישינר',c:'טיפוח'},{n:'קרם לחות לשיער',c:'טיפוח'},{n:'ליגינה פרוטקטיב',c:'טיפוח'},{n:'מגבונים',c:'טיפוח'},
+  {n:'ניקוי כללי ורצפה Ajax',c:'ניקיון'},{n:"ג'ל לניקוי אסלה Duck",c:'ניקיון'},{n:'כדוריות נקיון אסלה',c:'ניקיון'},{n:'מטהר אויר לשירותים',c:'ניקיון'},{n:'סנו קליר',c:'ניקיון'},{n:'אנטי קאלק',c:'ניקיון'},{n:'רסס ונגב',c:'ניקיון'},{n:'כלורון Ajax',c:'ניקיון'},{n:'אקונומיקה',c:'ניקיון'},{n:'מפיץ ריח לארון',c:'ניקיון'},{n:'סבון כלים',c:'ניקיון'},{n:'ספוג כלים',c:'ניקיון'},{n:'מטלית שיש',c:'ניקיון'},{n:'מטלית ריצפה',c:'ניקיון'},{n:'טבליות כביסה',c:'ניקיון'},{n:'מרכך כביסה',c:'ניקיון'},{n:'טבליות שטיפה למדיח',c:'ניקיון'},{n:'מלח למדיח',c:'ניקיון'},{n:'מבריק למדיח',c:'ניקיון'},
+  {n:'נייר טואלט - לילי לבן',c:'נייר'},{n:'נייר מטבח - סנו',c:'נייר'},{n:'שקיות אשפה - סנו',c:'נייר'},{n:'שקיות אוכל',c:'נייר'},{n:'מפיות',c:'נייר'},{n:'נייר אפייה',c:'נייר'},{n:'נייר שקוף',c:'נייר'},{n:'נייר כסף',c:'נייר'},{n:'תבניות כסף',c:'נייר'},{n:'כפפות לטקס M',c:'נייר'},
+  {n:'גרגירי פופקורן',c:'שונות'},{n:'קליק צהוב',c:'שונות'},{n:'מסטיקים',c:'שונות'},{n:'תרסיס מחבט',c:'שונות'},{n:'פחמים',c:'שונות'},{n:'מדליק פחמים',c:'שונות'},
+];
+
+let selectedIdxs=new Set(),shoppingList=[],activeCat='הכל',isShopMode=false;
+
+function encodeList(l){try{return btoa(unescape(encodeURIComponent(JSON.stringify(l))));}catch(e){return '';}}
+function decodeList(s){try{return JSON.parse(decodeURIComponent(escape(atob(s))));}catch(e){return null;}}
+function buildURL(l){return window.location.href.split('?')[0].split('#')[0]+'?list='+encodeURIComponent(encodeList(l));}
+
+function loadFromURL(){
+  const p=new URLSearchParams(window.location.search),raw=p.get('list');
+  if(!raw)return false;
+  const d=decodeList(raw);
+  if(!d||!d.length)return false;
+  shoppingList=d.map(i=>({...i,found:false}));
+  isShopMode=true;
+  document.getElementById('mode-badge').textContent='קניות';
+  document.getElementById('mode-badge').className='mode-badge shop';
+  return true;
+}
+
+function getCats(){return['הכל',...new Set(DB.map(p=>p.c))];}
+
+function renderProducts(){
+  const q=document.getElementById('search-inp').value.trim();
+  document.getElementById('cat-strip').innerHTML=getCats().map(c=>`<button class="cat-pill${c===activeCat?' active':''}" onclick="setCat('${c.replace(/'/g,"\\'")}')"> ${c}</button>`).join('');
+  let f=DB;
+  if(activeCat!=='הכל')f=f.filter(p=>p.c===activeCat);
+  if(q)f=f.filter(p=>p.n.includes(q));
+  const chk='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+  document.getElementById('pgrid').innerHTML=f.map(p=>{
+    const idx=DB.indexOf(p),sel=selectedIdxs.has(idx);
+    const pd=pendingDetail[idx]||{qty:1,unit:'יח׳',note:''};
+    const chkHtml=sel?chk:'';
+    const detail=sel?`<div class="item-detail" onclick="event.stopPropagation()">
+      <div class="item-detail-row">
+        <label>כמות</label>
+        <input type="number" min="0.1" step="0.1" value="${pd.qty}" oninput="setDetail(${idx},'qty',this.value)" style="width:70px" />
+        <select onchange="setDetail(${idx},'unit',this.value)">
+          ${['יח׳','גרם','ק״ג','מ״ל','ליטר','חבילה','קופסה'].map(u=>`<option${u===pd.unit?' selected':''}>${u}</option>`).join('')}
+        </select>
+      </div>
+      <div class="item-detail-row">
+        <label>הערה</label>
+        <input type="text" placeholder="לא שמן, לא מתובל..." value="${pd.note}" oninput="setDetail(${idx},'note',this.value)" />
+      </div>
+    </div>`:'';
+    return `<div class="product-item${sel?' selected':''}" style="cursor:default;flex-wrap:wrap">
+      <div style="flex:1;cursor:pointer;min-width:0" onclick="toggleSel(${idx})">
+        <div class="p-name">${p.n}</div>
+        <div class="p-cat">${p.c}</div>
+      </div>
+      <div class="check-circle" onclick="toggleSel(${idx})" style="align-self:flex-start;margin-top:2px">${chkHtml}</div>
+      ${sel?`<div style="width:100%">${detail}</div>`:''}
+    </div>`;
+  }).join('')||'<div class="empty"><p>לא נמצאו תוצאות</p></div>';
+  const cnt=selectedIdxs.size;
+  const btn=document.getElementById('add-btn');
+  btn.disabled=cnt===0;
+  btn.textContent=cnt===0?'בחר מוצרים להוסיף':`הוסף ${cnt} מוצרים לרשימה`;
+  document.getElementById('sel-indicator').style.display=cnt>0?'':'none';
+  document.getElementById('sel-badge').textContent=cnt;
+}
+
+// qty+unit+note per product index while selecting
+const pendingDetail={};
+
+function setDetail(idx,field,val){
+  if(!pendingDetail[idx])pendingDetail[idx]={qty:1,unit:'יח׳',note:''};
+  if(field==='qty')pendingDetail[idx].qty=parseFloat(val)||1;
+  else pendingDetail[idx][field]=val;
+}
+function setCat(c){activeCat=c;renderProducts();}
+function toggleSel(idx){
+  if(selectedIdxs.has(idx)){selectedIdxs.delete(idx);delete pendingDetail[idx];}
+  else{selectedIdxs.add(idx);pendingDetail[idx]={qty:1,unit:'יח׳',note:''};}
+  renderProducts();
+}
+function addSelected(){
+  selectedIdxs.forEach(idx=>{
+    const p=DB[idx],d=pendingDetail[idx]||{qty:1,unit:'יח׳',note:''};
+    const ex=shoppingList.find(i=>i.n===p.n);
+    if(ex){ex.qty+=d.qty;if(d.note)ex.note=d.note;}
+    else shoppingList.push({n:p.n,c:p.c,qty:d.qty,unit:d.unit,note:d.note,found:false});
+    delete pendingDetail[idx];
+  });
+  selectedIdxs.clear();renderProducts();updateListBadge();showTab('list');showToast('הרשימה עודכנה');
+}
+function updateListBadge(){
+  const pending=shoppingList.filter(i=>!i.found).length;
+  document.getElementById('list-indicator').style.display=shoppingList.length>0?'':'none';
+  document.getElementById('list-badge').textContent=pending;
+}
+function renderList(){
+  const wrap=document.getElementById('list-wrap');
+  if(!shoppingList.length){
+    wrap.innerHTML='<div class="empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg><p>הרשימה ריקה</p><small>עבור למוצרים כדי לבחור</small></div>';
+    return;
+  }
+  const pending=shoppingList.filter(i=>!i.found),found=shoppingList.filter(i=>i.found),tot=shoppingList.length,pct=Math.round(found.length/tot*100);
+  const chk='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+  let html=`<div class="progress-section"><div class="progress-nums"><span>נמצאו <strong>${found.length}</strong> מתוך ${tot}</span><span>${pct}%</span></div><div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div></div>`;
+  if(pending.length){
+    html+=`<div class="section-header">נשאר לחפש (${pending.length})</div>`;
+    pending.forEach(item=>{
+      const idx=shoppingList.indexOf(item);
+      const qtyStr=item.qty&&item.qty!==1?`${item.qty} ${item.unit||'יח׳'}`:(item.unit&&item.unit!=='יח׳'?item.unit:'');
+      const qtyBadge=qtyStr?`<span class="item-qty-badge">${qtyStr}</span>`:'';
+      const noteEl=item.note?`<div style="font-size:12px;color:var(--text-muted);margin-top:3px;font-style:italic">${item.note}</div>`:'';
+      html+=`<div class="list-item" onclick="toggleFound(${idx})"><div class="item-check"></div><div style="flex:1"><div class="item-name">${item.n}</div><div class="item-cat">${item.c}</div>${noteEl}</div>${qtyBadge}</div>`;
+    });
+  }
+  if(found.length){
+    html+=`<div class="section-header" style="margin-top:16px;">נמצא (${found.length})</div>`;
+    found.forEach(item=>{
+      const idx=shoppingList.indexOf(item);
+      const qtyStr=item.qty&&item.qty!==1?`${item.qty} ${item.unit||'יח׳'}`:(item.unit&&item.unit!=='יח׳'?item.unit:'');
+      const qtyBadge=qtyStr?`<span class="item-qty-badge" style="opacity:0.5">${qtyStr}</span>`:'';
+      const noteEl=item.note?`<div style="font-size:12px;color:var(--text-muted);margin-top:3px;font-style:italic">${item.note}</div>`:'';
+      html+=`<div class="list-item found" onclick="toggleFound(${idx})"><div class="item-check">${chk}</div><div style="flex:1"><div class="item-name">${item.n}</div><div class="item-cat">${item.c}</div>${noteEl}</div>${qtyBadge}</div>`;
+    });
+  }
+  wrap.innerHTML=html;
+}
+function toggleFound(idx){shoppingList[idx].found=!shoppingList[idx].found;renderList();updateListBadge();}
+function clearList(){if(confirm('למחוק את כל הרשימה?')){shoppingList=[];isShopMode=false;document.getElementById('mode-badge').textContent='יצירה';document.getElementById('mode-badge').className='mode-badge create';history.replaceState(null,'',window.location.pathname);renderList();updateListBadge();showTab('products');}}
+// --- CUSTOM DB (localStorage) ---
+const STORAGE_KEY='shopping_custom_db';
+let customDB=[];
+function loadCustomDB(){
+  try{const s=localStorage.getItem(STORAGE_KEY);if(s)customDB=JSON.parse(s);}catch(e){customDB=[];}
+  // merge into DB array
+  customDB.forEach(p=>{if(!DB.find(d=>d.n===p.n))DB.push(p);});
+}
+function saveCustomDB(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(customDB));}catch(e){}}
+function populateCatSelect(){
+  const sel=document.getElementById('new-cat');
+  const cats=[...new Set(DB.map(p=>p.c))].sort();
+  sel.innerHTML='<option value="">בחר קטגוריה...</option>'+cats.map(c=>`<option value="${c}">${c}</option>`).join('');
+}
+function addToDB(){
+  const name=document.getElementById('new-name').value.trim();
+  const selCat=document.getElementById('new-cat').value;
+  const customCat=document.getElementById('new-cat-custom').value.trim();
+  const cat=customCat||selCat;
+  if(!name){showToast('חסר שם מוצר');return;}
+  if(!cat){showToast('חסרה קטגוריה');return;}
+  if(DB.find(p=>p.n===name)){showToast('המוצר כבר קיים בדטהבייס');return;}
+  const newP={n:name,c:cat};
+  DB.push(newP);
+  customDB.push(newP);
+  saveCustomDB();
+  document.getElementById('new-name').value='';
+  document.getElementById('new-cat-custom').value='';
+  document.getElementById('new-cat').value='';
+  populateCatSelect();
+  renderCustomDBList();
+  showToast(`"${name}" נוסף לדטהבייס!`);
+}
+function removeFromCustomDB(idx){
+  const p=customDB[idx];
+  const dbIdx=DB.findIndex(d=>d.n===p.n);
+  if(dbIdx>=0)DB.splice(dbIdx,1);
+  customDB.splice(idx,1);
+  saveCustomDB();
+  renderCustomDBList();
+  showToast('מוצר הוסר');
+}
+function renderCustomDBList(){
+  const el=document.getElementById('custom-db-list');
+  document.getElementById('custom-count').textContent=customDB.length+' מוצרים';
+  if(!customDB.length){
+    el.innerHTML='<div style="padding:20px;text-align:center;font-size:14px;color:var(--text-faint)">עוד לא הוספת מוצרים</div>';
+    return;
+  }
+  el.innerHTML=customDB.map((p,i)=>`
+    <div class="custom-db-item">
+      <div style="flex:1"><div style="font-size:15px">${p.n}</div><div style="font-size:12px;color:var(--text-faint);margin-top:2px">${p.c}</div></div>
+      <button class="del-btn" onclick="removeFromCustomDB(${i})">×</button>
+    </div>`).join('');
+}
+
+function showTab(t){
+  ['products','list','db'].forEach(id=>{
+    const c=document.getElementById('content-'+id);
+    const b=document.getElementById('bottom-'+id);
+    const btn=document.getElementById('tab-'+id+'-btn');
+    if(c)c.style.display=id===t?'':'none';
+    if(b)b.style.display=id===t?'':'none';
+    if(btn)btn.classList.toggle('active',id===t);
+  });
+  if(t==='list')renderList();
+  if(t==='db'){populateCatSelect();renderCustomDBList();}
+}
+function openShare(){
+  const pending=shoppingList.filter(i=>!i.found);
+  if(!pending.length){showToast('אין פריטים ברשימה');return;}
+  const url=buildURL(pending.map(i=>({n:i.n,c:i.c,qty:i.qty,unit:i.unit,note:i.note})));
+  document.getElementById('share-link-box').textContent=url;
+  document.getElementById('share-modal').classList.remove('hidden');
+}
+function closeModal(){document.getElementById('share-modal').classList.add('hidden');}
+function shareWhatsApp(){
+  const pending=shoppingList.filter(i=>!i.found);
+  const url=buildURL(pending.map(i=>({n:i.n,c:i.c,qty:i.qty,unit:i.unit,note:i.note})));
+  window.open('https://wa.me/?text='+encodeURIComponent('הנה רשימת הקניות שלנו\uD83D\uDED2\n'+url),'_blank');
+  closeModal();
+}
+function copyLink(){
+  const pending=shoppingList.filter(i=>!i.found);
+  const url=buildURL(pending.map(i=>({n:i.n,c:i.c,qty:i.qty,unit:i.unit,note:i.note})));
+  navigator.clipboard?.writeText(url).then(()=>{showToast('הקישור הועתק!');closeModal();}).catch(()=>showToast('לא ניתן להעתיק'));
+}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
+
+const LIST_KEY='shopping_active_list';
+function saveList(){try{localStorage.setItem(LIST_KEY,JSON.stringify(shoppingList));}catch(e){}}
+function loadSavedList(){
+  try{
+    const s=localStorage.getItem(LIST_KEY);
+    if(s){const d=JSON.parse(s);if(d&&d.length){shoppingList=d;return true;}}
+  }catch(e){}
+  return false;
+}
+
+// wrap all list-mutating functions to auto-save
+const _origToggleFound=toggleFound;
+window.toggleFound=function(idx){_origToggleFound(idx);saveList();}
+const _origAddSelected=addSelected;
+window.addSelected=function(){_origAddSelected();saveList();}
+const _origClearList=clearList;
+window.clearList=function(){
+  if(confirm('למחוק את כל הרשימה?')){
+    shoppingList=[];isShopMode=false;
+    document.getElementById('mode-badge').textContent='יצירה';
+    document.getElementById('mode-badge').className='mode-badge create';
+    history.replaceState(null,'',window.location.pathname);
+    saveList();renderList();updateListBadge();showTab('products');
+  }
+}
+
+loadCustomDB();
+const urlParams=new URLSearchParams(window.location.search);
+const urlRaw=urlParams.get('list');
+const urlDecoded=urlRaw?decodeList(urlRaw):null;
+const hadSaved=loadSavedList();
+
+if(urlDecoded&&urlDecoded.length){
+  // Clean URL so refresh doesn't re-trigger
+  history.replaceState(null,'',window.location.pathname);
+  if(hadSaved&&shoppingList.length){
+    // Conflict — show modal
+    document.getElementById('conflict-modal').classList.remove('hidden');
+    document.getElementById('conflict-replace-btn').onclick=()=>{
+      shoppingList=urlDecoded.map(i=>({...i,found:false}));
+      isShopMode=true;
+      document.getElementById('mode-badge').textContent='קניות';
+      document.getElementById('mode-badge').className='mode-badge shop';
+      saveList();renderList();updateListBadge();
+      document.getElementById('conflict-modal').classList.add('hidden');
+      showTab('list');
+    };
+    document.getElementById('conflict-merge-btn').onclick=()=>{
+      urlDecoded.forEach(i=>{
+        const ex=shoppingList.find(e=>e.n===i.n);
+        if(ex){ex.qty=(parseFloat(ex.qty)||1)+(parseFloat(i.qty)||1);}
+        else shoppingList.push({...i,found:false});
+      });
+      saveList();renderList();updateListBadge();
+      document.getElementById('conflict-modal').classList.add('hidden');
+      showTab('list');
+    };
+    document.getElementById('conflict-cancel-btn').onclick=()=>{
+      document.getElementById('conflict-modal').classList.add('hidden');
+      showTab('list');renderList();
+    };
+    renderProducts();updateListBadge();showTab('list');renderList();
+  } else {
+    // No conflict — load URL list directly
+    shoppingList=urlDecoded.map(i=>({...i,found:false}));
+    isShopMode=true;
+    document.getElementById('mode-badge').textContent='קניות';
+    document.getElementById('mode-badge').className='mode-badge shop';
+    saveList();
+    renderProducts();updateListBadge();showTab('list');renderList();
+  }
+} else {
+  renderProducts();updateListBadge();
+  if(hadSaved&&shoppingList.length){showTab('list');renderList();}
+}
+</script>
+</body>
+</html>
