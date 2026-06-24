@@ -122,7 +122,6 @@ body{display:flex;flex-direction:column;max-width:480px;margin:0 auto;}
     <button class="tab" id="tab-list-btn" onclick="showTab('list')">
       רשימה <span id="list-indicator" style="display:none"><span class="sel-badge" id="list-badge" style="background:#92400e">0</span></span>
     </button>
-    <button class="tab" id="tab-db-btn" onclick="showTab('db')">ניהול מוצרים</button>
   </div>
 </div>
 
@@ -138,39 +137,8 @@ body{display:flex;flex-direction:column;max-width:480px;margin:0 auto;}
   <div class="list-wrap" id="list-wrap"></div>
 </div>
 
-<div class="content" id="content-db" style="display:none">
-  <div style="padding:16px 16px 120px">
-    <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">הוסף מוצר חדש לדטהבייס. יישמר בדפדפן ויופיע בלשונית מוצרים.</p>
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px;">
-      <div style="margin-bottom:12px;">
-        <label style="font-size:13px;color:var(--text-muted);display:block;margin-bottom:6px;">שם המוצר *</label>
-        <input id="new-name" class="search-input" type="text" placeholder="לדוגמה: גרנולה" style="width:100%" />
-      </div>
-      <div style="margin-bottom:16px;">
-        <label style="font-size:13px;color:var(--text-muted);display:block;margin-bottom:6px;">קטגוריה *</label>
-        <select id="new-cat" class="search-input" style="width:100%;cursor:pointer"><option value="">בחר קטגוריה...</option></select>
-        <div style="display:flex;gap:8px;margin-top:8px;">
-          <input id="new-cat-custom" class="search-input" type="text" placeholder="או הקלד קטגוריה חדשה..." style="flex:1" />
-        </div>
-      </div>
-      <button onclick="addToDB()" style="width:100%;padding:13px;font-size:15px;font-weight:600;border:none;border-radius:var(--radius-sm);cursor:pointer;background:var(--green);color:white;">+ הוסף לדטהבייס</button>
-    </div>
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">
-      <div style="padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
-        <span style="font-size:13px;font-weight:600;color:var(--text)">מוצרים שהוספת</span>
-        <span id="custom-count" style="font-size:12px;color:var(--text-muted)">0 מוצרים</span>
-      </div>
-      <div id="custom-db-list" style="max-height:300px;overflow-y:auto;"></div>
-    </div>
-  </div>
-</div>
-
 <div class="bottom-bar" id="bottom-products">
   <button class="primary-btn" id="add-btn" onclick="addSelected()" disabled>בחר מוצרים להוסיף</button>
-</div>
-
-<div class="bottom-bar" id="bottom-db" style="display:none">
-  <button class="sec-btn" onclick="showTab('products')" style="width:100%">← חזור למוצרים</button>
 </div>
 
 <div class="bottom-bar" id="bottom-list" style="display:none">
@@ -243,13 +211,51 @@ const DB=[
 
 let selectedIdxs=new Set(),shoppingList=[],activeCat='הכל',isShopMode=false;
 
-function encodeList(l){try{return btoa(unescape(encodeURIComponent(JSON.stringify(l))));}catch(e){return '';}}
-function decodeList(s){try{return JSON.parse(decodeURIComponent(escape(atob(s))));}catch(e){return null;}}
-function buildURL(l){return window.location.href.split('?')[0].split('#')[0]+'?list='+encodeURIComponent(encodeList(l));}
+function encodeList(l){
+  // Compact format: for each item, store DB index (or name if not in DB), qty, unit, note
+  // Format per item: "idx|qty|unit|note" joined by "~"
+  const UNITS=['יח׳','גרם','ק״ג','מ״ל','ליטר','חבילה','קופסה'];
+  const parts=l.map(i=>{
+    const dbIdx=DB.findIndex(d=>d.n===i.n);
+    const name=dbIdx>=0?dbIdx:encodeURIComponent(i.n);
+    const qty=i.qty||1;
+    const unit=UNITS.indexOf(i.unit||'יח׳');
+    const note=i.note?encodeURIComponent(i.note):'';
+    return `${name}|${qty}|${unit<0?0:unit}|${note}`;
+  });
+  return parts.join('~');
+}
+function decodeList(s){
+  try{
+    // New compact format (contains pipe character)
+    if(s.includes('|')){
+      const UNITS=['יח׳','גרם','ק״ג','מ״ל','ליטר','חבילה','קופסה'];
+      return s.split('~').map(part=>{
+        const [nameOrIdx,qty,unitIdx,note]=part.split('|');
+        const idx=parseInt(nameOrIdx);
+        const item=!isNaN(idx)&&DB[idx]?{n:DB[idx].n,c:DB[idx].c}:{n:decodeURIComponent(nameOrIdx),c:'אחר'};
+        return {...item,qty:parseFloat(qty)||1,unit:UNITS[parseInt(unitIdx)]||'יח׳',note:note?decodeURIComponent(note):''};
+      });
+    }
+    // Old base64 JSON format — decode bytes properly
+    const bin=atob(s);
+    const bytes=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+    const json=new TextDecoder('utf-8').decode(bytes);
+    return JSON.parse(json);
+  }catch(e){return null;}
+}
+function buildURL(l){
+  const base='https://leralik.github.io/shopping-app';
+  return base+'?list='+encodeList(l);
+}
 
 function loadFromURL(){
-  const p=new URLSearchParams(window.location.search),raw=p.get('list');
-  if(!raw)return false;
+  const search=window.location.search;
+  if(!search)return false;
+  const match=search.match(/[?&]list=([^&]*)/);
+  if(!match)return false;
+  const raw=decodeURIComponent(match[1]);
   const d=decodeList(raw);
   if(!d||!d.length)return false;
   shoppingList=d.map(i=>({...i,found:false}));
@@ -364,64 +370,9 @@ function renderList(){
 }
 function toggleFound(idx){shoppingList[idx].found=!shoppingList[idx].found;renderList();updateListBadge();}
 function clearList(){if(confirm('למחוק את כל הרשימה?')){shoppingList=[];isShopMode=false;document.getElementById('mode-badge').textContent='יצירה';document.getElementById('mode-badge').className='mode-badge create';history.replaceState(null,'',window.location.pathname);renderList();updateListBadge();showTab('products');}}
-// --- CUSTOM DB (localStorage) ---
-const STORAGE_KEY='shopping_custom_db';
-let customDB=[];
-function loadCustomDB(){
-  try{const s=localStorage.getItem(STORAGE_KEY);if(s)customDB=JSON.parse(s);}catch(e){customDB=[];}
-  // merge into DB array
-  customDB.forEach(p=>{if(!DB.find(d=>d.n===p.n))DB.push(p);});
-}
-function saveCustomDB(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(customDB));}catch(e){}}
-function populateCatSelect(){
-  const sel=document.getElementById('new-cat');
-  const cats=[...new Set(DB.map(p=>p.c))].sort();
-  sel.innerHTML='<option value="">בחר קטגוריה...</option>'+cats.map(c=>`<option value="${c}">${c}</option>`).join('');
-}
-function addToDB(){
-  const name=document.getElementById('new-name').value.trim();
-  const selCat=document.getElementById('new-cat').value;
-  const customCat=document.getElementById('new-cat-custom').value.trim();
-  const cat=customCat||selCat;
-  if(!name){showToast('חסר שם מוצר');return;}
-  if(!cat){showToast('חסרה קטגוריה');return;}
-  if(DB.find(p=>p.n===name)){showToast('המוצר כבר קיים בדטהבייס');return;}
-  const newP={n:name,c:cat};
-  DB.push(newP);
-  customDB.push(newP);
-  saveCustomDB();
-  document.getElementById('new-name').value='';
-  document.getElementById('new-cat-custom').value='';
-  document.getElementById('new-cat').value='';
-  populateCatSelect();
-  renderCustomDBList();
-  showToast(`"${name}" נוסף לדטהבייס!`);
-}
-function removeFromCustomDB(idx){
-  const p=customDB[idx];
-  const dbIdx=DB.findIndex(d=>d.n===p.n);
-  if(dbIdx>=0)DB.splice(dbIdx,1);
-  customDB.splice(idx,1);
-  saveCustomDB();
-  renderCustomDBList();
-  showToast('מוצר הוסר');
-}
-function renderCustomDBList(){
-  const el=document.getElementById('custom-db-list');
-  document.getElementById('custom-count').textContent=customDB.length+' מוצרים';
-  if(!customDB.length){
-    el.innerHTML='<div style="padding:20px;text-align:center;font-size:14px;color:var(--text-faint)">עוד לא הוספת מוצרים</div>';
-    return;
-  }
-  el.innerHTML=customDB.map((p,i)=>`
-    <div class="custom-db-item">
-      <div style="flex:1"><div style="font-size:15px">${p.n}</div><div style="font-size:12px;color:var(--text-faint);margin-top:2px">${p.c}</div></div>
-      <button class="del-btn" onclick="removeFromCustomDB(${i})">×</button>
-    </div>`).join('');
-}
 
 function showTab(t){
-  ['products','list','db'].forEach(id=>{
+  ['products','list'].forEach(id=>{
     const c=document.getElementById('content-'+id);
     const b=document.getElementById('bottom-'+id);
     const btn=document.getElementById('tab-'+id+'-btn');
@@ -430,7 +381,6 @@ function showTab(t){
     if(btn)btn.classList.toggle('active',id===t);
   });
   if(t==='list')renderList();
-  if(t==='db'){populateCatSelect();renderCustomDBList();}
 }
 function openShare(){
   const pending=shoppingList.filter(i=>!i.found);
@@ -479,9 +429,9 @@ window.clearList=function(){
   }
 }
 
-loadCustomDB();
-const urlParams=new URLSearchParams(window.location.search);
-const urlRaw=urlParams.get('list');
+const search=window.location.search;
+const urlMatch=search?search.match(/[?&]list=([^&]*)/)  :null;
+const urlRaw=urlMatch?decodeURIComponent(urlMatch[1]):null;
 const urlDecoded=urlRaw?decodeList(urlRaw):null;
 const hadSaved=loadSavedList();
 
